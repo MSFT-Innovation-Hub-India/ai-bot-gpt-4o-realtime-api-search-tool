@@ -1,0 +1,8 @@
+chainlit==1.3.0rc1
+openai
+yfinance
+websockets
+pydantic==2.10.1
+python-dotenv
+langchain-openai
+langchain_community
