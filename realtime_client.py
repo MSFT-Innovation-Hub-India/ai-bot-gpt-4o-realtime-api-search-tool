@@ -141,7 +141,6 @@ class RTWSClient:
         """
         async for message in self.ws:
             event = json.loads(message)
-            event_type = event["type"]
             # print("event_type", event_type)
             if event["type"] == "error":
                 # print("Some error !!", message)
@@ -164,7 +163,8 @@ class RTWSClient:
                 # Hence we need to send a 'response.create' event to signal the server to respond
                 await self.send("response.create", {"response": self.response_config})
             elif event["type"] == "input_audio_buffer.speech_started":
-                # The server has detected speech from the user. Hence use this event to signal the UI to stopped playing any audio if playing one
+                # The server has detected speech input from the user. Hence use this event to signal the UI to stop playing any audio if playing one
+                print("conversation interrupted.......")
                 _event = {"type": "conversation_interrupted"}
                 # signal the UI to stop playing audio
                 self.dispatch("conversation.interrupted", _event)
@@ -189,52 +189,58 @@ class RTWSClient:
                 # when a user request entails a function call, response.done does not return an audio
                 # It instead returns the functions that match the intent, along with the arguments to invoke it
                 # checking for function call hints in the response
-                print("Response event >>", event)
+                
+                # print("Response event >>", event)
                 try:
-                    output_type = (
-                        event.get("response", {})
-                        .get("output", [{}])[0]
-                        .get("type", None)
-                    )
-                    if "function_call" == output_type:
-                        function_name = (
+                    _status = (
+                            event.get("response", {})
+                            .get("status", None)
+                        )
+                    if "completed" == _status:
+                        output_type = (
                             event.get("response", {})
                             .get("output", [{}])[0]
-                            .get("name", None)
+                            .get("type", None)
                         )
-                        arguments = json.loads(
-                            event.get("response", {})
-                            .get("output", [{}])[0]
-                            .get("arguments", None)
-                        )
-                        tool_call_id = (
-                            event.get("response", {})
-                            .get("output", [{}])[0]
-                            .get("call_id", None)
-                        )
+                        if "function_call" == output_type:
+                            function_name = (
+                                event.get("response", {})
+                                .get("output", [{}])[0]
+                                .get("name", None)
+                            )
+                            arguments = json.loads(
+                                event.get("response", {})
+                                .get("output", [{}])[0]
+                                .get("arguments", None)
+                            )
+                            tool_call_id = (
+                                event.get("response", {})
+                                .get("output", [{}])[0]
+                                .get("call_id", None)
+                            )
 
-                        function_to_call = available_functions[function_name]
-                        # invoke the function with the arguments and get the response
-                        response = function_to_call(**arguments)
-                        print(
-                            f"called function {function_name}, and the response is:",
-                            response,
-                        )
-                        # send the function call response to the server(model)
-                        await self.send(
-                            "conversation.item.create",
-                            {
-                                "item": {
-                                    "type": "function_call_output",
-                                    "call_id": tool_call_id,
-                                    "output": json.dumps(response),
-                                }
-                            },
-                        )
-                        # signal the model(server) to generate a response based on the function call output sent to it
-                        await self.send(
-                            "response.create", {"response": self.response_config}
-                        )
+                            function_to_call = available_functions[function_name]
+                            # invoke the function with the arguments and get the response
+                            response = function_to_call(**arguments)
+                            print(
+                                f"called function {function_name}, and the response is:",
+                                response,
+                            )
+                            # send the function call response to the server(model)
+                            await self.send(
+                                "conversation.item.create",
+                                {
+                                    "item": {
+                                        "type": "function_call_output",
+                                        "call_id": tool_call_id,
+                                        "output": json.dumps(response),
+                                    }
+                                },
+                            )
+                            # signal the model(server) to generate a response based on the function call output sent to it
+                            await self.send(
+                                "response.create", {"response": self.response_config}
+                            )
                 except Exception as e:
                     print("Error in processing function call:", e)
                     print(traceback.format_exc())

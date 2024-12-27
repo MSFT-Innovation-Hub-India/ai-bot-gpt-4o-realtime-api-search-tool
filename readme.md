@@ -49,3 +49,16 @@ $env:TAVILY_API_KEY = "tvly-<your-api-key"
 ```
 chainlit run app.py -w
 ```
+
+
+### Limitations in the App
+
+The following events are returned by the server asynchronously, and not necessarily in the right order
+- transcript of the user audio input (*event conversation.item.input_audio_transcription.completed*) and
+- the transcript of the server response to the user input (*event response.audio_transcript.delta*)
+
+Hence, in the chat window, the transcript from the server response would get populated before the user query itself, and the sequencing in the UI could get awry.
+I have handled this issue in a custom way in the UI, but it is not perfect.
+
+I have tried to use the response.text.delta event from the server, to get the input audio transcript, but these events don't seem to be getting raised at all.
+Will update this repo once I figure how that could be handled

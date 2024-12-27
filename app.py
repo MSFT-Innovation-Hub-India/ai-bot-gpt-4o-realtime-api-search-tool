@@ -7,6 +7,7 @@ async def init_rtclient():
     openai_realtime = RTWSClient(system_prompt=system_prompt)
     cl.user_session.set("track_id", str(uuid4()))
     cl.user_session.set("transcript", ["1", "-"])
+    cl.user_session.set("user_input_transcript", ["1", ""])
 
     async def handle_conversation_updated(event):
         """Used to play the response audio chunks as they are received from the server."""
@@ -47,6 +48,19 @@ async def init_rtclient():
                 ).update()
             else:
                 transcript_ref = [item_id, delta]
+                
+                # create a placeholder message for the user input first
+                # we can set the actual message later when the server provides it
+                user_transcript_msg_id = str(uuid4())
+                cl.user_session.set("user_input_transcript", [user_transcript_msg_id,"" ])
+                await cl.Message(
+                    content="",
+                    author="user",
+                    type="user_message",
+                    id=user_transcript_msg_id,
+                ).send()
+                
+                # now populate the assistant response transcript in the chat interface
                 cl.user_session.set("transcript", transcript_ref)
                 await cl.Message(
                     content=delta,
@@ -61,7 +75,12 @@ async def init_rtclient():
         in the chat window would not be correct.
         """
         transcript = event.get("transcript")
-        await cl.Message(content=transcript, author="user", type="user_message").send()
+        msg_id = cl.user_session.get("user_input_transcript")[0]
+        # await cl.Message(content=transcript, author="user", type="user_message").send()
+        
+        # A placeholder message was created for the user input transcript earlier. updating the message with the actual transcript
+        await cl.Message(content=transcript, author="user", type="user_message",id=msg_id).update()
+        cl.user_session.set("user_input_transcript",[str(uuid4()),""])
 
     openai_realtime.on("conversation.updated", handle_conversation_updated)
     openai_realtime.on("conversation.interrupted", handle_conversation_interrupt)
