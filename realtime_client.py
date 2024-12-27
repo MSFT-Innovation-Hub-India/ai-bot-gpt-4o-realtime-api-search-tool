@@ -189,44 +189,7 @@ class RTWSClient:
                 # when a user request entails a function call, response.done does not return an audio
                 # It instead returns the functions that match the intent, along with the arguments to invoke it
                 # checking for function call hints in the response
-
                 print("Response event >>", event)
-                # this is what the response looks like when a function call is detected
-                # {
-                #     "type": "response.done",
-                #     "event_id": "event_AiwiL3S5knFCPTITXz9iK",
-                #     "response": {
-                #         "object": "realtime.response",
-                #         "id": "resp_AiwiLqpqKnf66XraOArMK",
-                #         "status": "completed",
-                #         "status_details": None,
-                #         "output": [
-                #             {
-                #                 "id": "item_AiwiL2MpXor15dS8Vx8R3",
-                #                 "object": "realtime.item",
-                #                 "type": "function_call",
-                #                 "status": "completed",
-                #                 "name": "search_function",
-                #                 "call_id": "call_HCSVtn8c1KwcL7E0",
-                #                 "arguments": '{"search_term":"latest news on OpenAI"}',
-                #             }
-                #         ],
-                #         "usage": {
-                #             "total_tokens": 962,
-                #             "input_tokens": 942,
-                #             "output_tokens": 20,
-                #             "input_token_details": {
-                #                 "cached_tokens": 0,
-                #                 "text_tokens": 356,
-                #                 "audio_tokens": 586,
-                #             },
-                #             "output_token_details": {
-                #                 "text_tokens": 20,
-                #                 "audio_tokens": 0,
-                #             },
-                #         },
-                #     },
-                # }
                 try:
                     output_type = (
                         event.get("response", {})
@@ -300,3 +263,41 @@ class RTWSClient:
                     "audio": array_buffer_to_base64(np.array(array_buffer)),
                 },
             )
+
+
+    # this is what the response looks like when a function call is detected
+    # {
+    #     "type": "response.done",
+    #     "event_id": "event_AiwiL3S5knFCPTITXz9iK",
+    #     "response": {
+    #         "object": "realtime.response",
+    #         "id": "resp_AiwiLqpqKnf66XraOArMK",
+    #         "status": "completed",
+    #         "status_details": None,
+    #         "output": [
+    #             {
+    #                 "id": "item_AiwiL2MpXor15dS8Vx8R3",
+    #                 "object": "realtime.item",
+    #                 "type": "function_call",
+    #                 "status": "completed",
+    #                 "name": "search_function",
+    #                 "call_id": "call_HCSVtn8c1KwcL7E0",
+    #                 "arguments": '{"search_term":"latest news on OpenAI"}',
+    #             }
+    #         ],
+    #         "usage": {
+    #             "total_tokens": 962,
+    #             "input_tokens": 942,
+    #             "output_tokens": 20,
+    #             "input_token_details": {
+    #                 "cached_tokens": 0,
+    #                 "text_tokens": 356,
+    #                 "audio_tokens": 586,
+    #             },
+    #             "output_token_details": {
+    #                 "text_tokens": 20,
+    #                 "audio_tokens": 0,
+    #             },
+    #         },
+    #     },
+    # }
