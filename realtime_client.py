@@ -1,4 +1,5 @@
-import base64
+from utils import array_buffer_to_base64, base64_to_array_buffer
+import traceback
 import inspect
 import numpy as np
 from envconfig import DefaultConfig
@@ -12,64 +13,9 @@ from envconfig import DefaultConfig
 from tools import available_functions, tools_list
 
 
-def float_to_16bit_pcm(float32_array):
-    """
-    Converts a numpy array of float32 amplitude data to a numpy array in int16 format.
-    :param float32_array: numpy array of float32
-    :return: numpy array of int16
-    """
-    int16_array = np.clip(float32_array, -1, 1) * 32767
-    return int16_array.astype(np.int16)
-
-
-def base64_to_array_buffer(base64_string):
-    """
-    Converts a base64 string to a numpy array buffer.
-    :param base64_string: base64 encoded string
-    :return: numpy array of uint8
-    """
-    binary_data = base64.b64decode(base64_string)
-    return np.frombuffer(binary_data, dtype=np.uint8)
-
-
-def array_buffer_to_base64(array_buffer):
-    """
-    Converts a numpy array buffer to a base64 string.
-    :param array_buffer: numpy array
-    :return: base64 encoded string
-    """
-    if array_buffer.dtype == np.float32:
-        array_buffer = float_to_16bit_pcm(array_buffer)
-    elif array_buffer.dtype == np.int16:
-        array_buffer = array_buffer.tobytes()
-    else:
-        array_buffer = array_buffer.tobytes()
-
-    return base64.b64encode(array_buffer).decode("utf-8")
-
-
-def merge_int16_arrays(left, right):
-    """
-    Merge two numpy arrays of int16.
-    :param left: numpy array of int16
-    :param right: numpy array of int16
-    :return: merged numpy array of int16
-    """
-    if (
-        isinstance(left, np.ndarray)
-        and left.dtype == np.int16
-        and isinstance(right, np.ndarray)
-        and right.dtype == np.int16
-    ):
-        return np.concatenate((left, right))
-    else:
-        raise ValueError("Both items must be numpy arrays of int16")
-
-
 base_url = f"wss://{DefaultConfig.az_open_ai_endpoint_name}.openai.azure.com/"
 api_key = DefaultConfig.az_openai_key
 api_version = DefaultConfig.az_openai_api_version
-azure_deployment = DefaultConfig.deployment_name
 model_name = DefaultConfig.model_name
 url = f"{base_url}openai/realtime?api-version={api_version}&deployment={model_name}&api-key={api_key}"
 
@@ -105,6 +51,9 @@ class RTWSClient:
         self.event_handlers[event_name].append(handler)
 
     def dispatch(self, event_name, event):
+        """Dispatches an event to all registered handlers for the given event name.
+        In this case, this dispatcher is used to notify the Chainlit UI of events it should know of
+        to take actions in the UI"""
         for handler in self.event_handlers[event_name]:
             if inspect.iscoroutinefunction(handler):
                 asyncio.create_task(handler(event))
@@ -118,6 +67,7 @@ class RTWSClient:
         logger.debug(f"[Websocket/{datetime.datetime.utcnow().isoformat()}]", *args)
 
     async def connect(self):
+        """Connects the client using a WS Connection to the Realtime API."""
         if self.is_connected():
             # raise Exception("Already connected")
             self.log("Already connected")
@@ -134,6 +84,7 @@ class RTWSClient:
         await self.update_session()
 
     async def disconnect(self):
+        """Disconnects the client from the WS Connection to the Realtime API."""
         if self.ws:
             await self.ws.close()
             self.ws = None
@@ -170,6 +121,7 @@ class RTWSClient:
                     }
                 },
             )
+            # this is the trigger to the server to start responding to the user query
             await self.send("response.create", {"response": self.response_config})
 
     async def update_session(self):
@@ -204,12 +156,12 @@ class RTWSClient:
                 # send event to chainlit UI to play this audio
                 self.dispatch("conversation.updated", _event)
             elif event["type"] == "response.audio.done":
-                # server has finished sending audio response
+                # server has finished sending back the audio response to the user query
                 # let the chainlit UI know that the response audio has been completely received
                 self.dispatch("conversation.updated", event)
             elif event["type"] == "input_audio_buffer.committed":
-                # user has stopped speaking. This is relevant since the audio delta input from the user captured till now can now be processed by the server.
-                # Hence we need to send a 'response.create' event to signal the server to to respond
+                # user has stopped speaking. The audio delta input from the user captured till now should now be processed by the server.
+                # Hence we need to send a 'response.create' event to signal the server to respond
                 await self.send("response.create", {"response": self.response_config})
             elif event["type"] == "input_audio_buffer.speech_started":
                 # The server has detected speech from the user. Hence use this event to signal the UI to stopped playing any audio if playing one
@@ -217,7 +169,7 @@ class RTWSClient:
                 # signal the UI to stop playing audio
                 self.dispatch("conversation.interrupted", _event)
             elif event["type"] == "response.audio_transcript.delta":
-                # this event is received when the transcript of the server's audio response to the user has started to come in
+                # this event is received when the transcript of the server's audio response to the user has started to come in.
                 # send this to the UI to display the transcript in the chat window, even as the audio of the response gets played
                 delta = event["delta"]
                 item_id = event["item_id"]
@@ -229,12 +181,52 @@ class RTWSClient:
             ):
                 # this event is received when the transcript of the user's query (i.e. input audio) has been completed.
                 # Since this happens asynchronous to the respond audio transcription, the sequence of the two in the chat window
-                # would not necessarily be correct
+                # would not necessarily be correct all the time
                 user_query_transcript = event["transcript"]
                 _event = {"transcript": user_query_transcript}
                 self.dispatch("conversation.input.text.done", _event)
             elif event["type"] == "response.done":
+                # when a user request entails a function call, response.done does not return an audio
+                # It instead returns the functions that match the intent, along with the arguments to invoke it
                 # checking for function call hints in the response
+
+                print("Response event >>", event)
+                # this is what the response looks like when a function call is detected
+                # {
+                #     "type": "response.done",
+                #     "event_id": "event_AiwiL3S5knFCPTITXz9iK",
+                #     "response": {
+                #         "object": "realtime.response",
+                #         "id": "resp_AiwiLqpqKnf66XraOArMK",
+                #         "status": "completed",
+                #         "status_details": None,
+                #         "output": [
+                #             {
+                #                 "id": "item_AiwiL2MpXor15dS8Vx8R3",
+                #                 "object": "realtime.item",
+                #                 "type": "function_call",
+                #                 "status": "completed",
+                #                 "name": "search_function",
+                #                 "call_id": "call_HCSVtn8c1KwcL7E0",
+                #                 "arguments": '{"search_term":"latest news on OpenAI"}',
+                #             }
+                #         ],
+                #         "usage": {
+                #             "total_tokens": 962,
+                #             "input_tokens": 942,
+                #             "output_tokens": 20,
+                #             "input_token_details": {
+                #                 "cached_tokens": 0,
+                #                 "text_tokens": 356,
+                #                 "audio_tokens": 586,
+                #             },
+                #             "output_token_details": {
+                #                 "text_tokens": 20,
+                #                 "audio_tokens": 0,
+                #             },
+                #         },
+                #     },
+                # }
                 try:
                     output_type = (
                         event.get("response", {})
@@ -282,6 +274,7 @@ class RTWSClient:
                         )
                 except Exception as e:
                     print("Error in processing function call:", e)
+                    print(traceback.format_exc())
                     pass
             else:
                 # print("Unknown event type:", event.get("type"))
@@ -293,9 +286,11 @@ class RTWSClient:
     async def append_input_audio(self, array_buffer):
         """
         Appends the provided audio data to the input audio buffer that is sent to the server. We are not asking the server to start responding yet.
-        The server will start responding only when an event 'response.create' is sent to it to the server
         This function takes an array buffer containing audio data, converts it to a base64 encoded string,
         and sends it to the input audio buffer for further processing.
+
+        Note that the server will not start responding just because we sent this audio buffer
+        It will do so only when it receives an event 'response.create' from the client
         """
         # Check if the array buffer is not empty and send the audio data to the input buffer
         if len(array_buffer) > 0:

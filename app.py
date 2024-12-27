@@ -25,16 +25,20 @@ async def init_rtclient():
         await cl.context.emitter.send_audio_interrupt()
 
     async def handle_conversation_thread_updated(event):
-        """Used to populate the chat context with transcription once an audio transcript of the response is completed."""
+        """Used to populate the chat context with transcription once an audio transcript of the response is done."""
         item_id = event.get("item_id")
         delta = event.get("transcript")
         if delta:
             transcript_ref = cl.user_session.get("transcript")
             # print(f"item_id in delta is {item_id}, and the one in the session is {transcript_ref[0]}")
+            
+            # identify if there is a new message or an update to an existing message (i.e. delta to an existing transcript)
             if transcript_ref[0] == item_id:
                 _transcript = transcript_ref[1] + delta
                 transcript_ref = [item_id, _transcript]
                 cl.user_session.set("transcript", transcript_ref)
+                # appending the delta transcript from audio to the previous transcript
+                # using the message id as the key to update the message in the chat window
                 await cl.Message(
                     content=_transcript,
                     author="assistant",
@@ -68,10 +72,18 @@ async def init_rtclient():
     cl.user_session.set("openai_realtime", openai_realtime)
 
 
-system_prompt = """You are an AI Assistant tasked with helping users with answers to their queries. Respond to the user questions with both text and audio in your responses.
-You must stick to the English language only in your responses, even if the user asks you to respond in another language.
-When the user query pertains to current affairs, you should provide up-to-date information by using the search function provided to you. When doing so:
-- extract the information from the search function results and provide a summary to the user. Also provide the source of the information.
+system_prompt = """You are an AI Assistant tasked with helping users with answers to their queries. Respond to the user queries with both text and audio in your responses.
+** Some rules you must follow during the conversation: **
+- **You must stick to the English language only in your responses, even if the user asks you to respond in another language.**
+- **When the user query can be answered accurately only by looking up the latest information, you should then use the Search function available to you. **
+- Else, it is okay to respond with your own knowledge of the subject.
+
+When using the search function to respond to a user query, you must:
+- **extract the information from the search function results and provide a summary to the user. **
+- Also provide the source of the information.
+
+Before responding, review what you are going to say out, and ensure it honours the rules above. If you are unsure, ask the user for clarification.
+
 """
 
 

@@ -21,9 +21,24 @@ Create a virtual environment and install the libraries
 
 ### Configuration
 
-search_key=os.getenv("SEARCH_TAVILY_KEY") - **this does not work. We need to set the environment variable explicitly**
 
-- Set the environment variable in the terminal, as shown below:
+Create a .env file with the following configurations
+
+```
+    az_openai_key = ""
+    az_open_ai_endpoint_name = "<>"
+    az_openai_api_version = "2024-10-01-preview"
+    model_name="gpt-4o-realtime-preview"
+
+```
+
+Note: if the azure OpenAI endpoint url is https://mydemogpt4.openai.azure.com/, then the value to set, for az_open_ai_endpoint_name in the config above, should be mydemogpt4
+
+Tavily is used to perform search. You need to get an API key from [Tavily API Documentation](https://docs.tavily.com/docs/rest-api/api-reference).
+
+**Note: **We cannot set the API key in the .env file, since it does not pickup from there. You need to set the API key value in the VS Code terminal directly
+
+- Set the environment variable in the VS Code terminal, as shown below:
 
 ```sh
 $env:TAVILY_API_KEY = "tvly-<your-api-key"
