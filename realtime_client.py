@@ -125,7 +125,7 @@ class RTWSClient:
             await self.send("response.create", {"response": self.response_config})
             
             # raise this event to the UI to pause the audio playback, in case it is doing so already, 
-            # when the user submitted a query in the chat interface
+            # when the user submits a query in the chat interface
             _event = {"type": "conversation_interrupted"}
             # signal the UI to stop playing audio
             self.dispatch("conversation.interrupted", _event)
@@ -170,7 +170,7 @@ class RTWSClient:
                 await self.send("response.create", {"response": self.response_config})
             elif event["type"] == "input_audio_buffer.speech_started":
                 # The server has detected speech input from the user. Hence use this event to signal the UI to stop playing any audio if playing one
-                print("conversation interrupted.......")
+                # print("conversation interrupted.......")
                 _event = {"type": "conversation_interrupted"}
                 # signal the UI to stop playing audio
                 self.dispatch("conversation.interrupted", _event)

@@ -17,7 +17,7 @@ The sample uses only one additional skill, which is performing internet search u
 
 Create a virtual environment and install the libraries
 
-**Note:** - the version of the chainlit and pydantic libraries are important. Install only the version indicated in the requirements.txt.
+**Note:**  Install only the versions of chainlit and pydantic mentioned in the requirements.txt.
 
 ### Configuration
 
@@ -32,7 +32,7 @@ Create a .env file with the following configurations
 
 ```
 
-Note: if the azure OpenAI endpoint url is https://mydemogpt4.openai.azure.com/, then the value to set, for az_open_ai_endpoint_name in the config above, should be mydemogpt4
+[Note: if the azure OpenAI endpoint url is https://mydemogpt4.openai.azure.com/, then the value to set, for az_open_ai_endpoint_name in the config above, is mydemogpt4]
 
 Tavily is used to perform search. You need to get an API key from [Tavily API Documentation](https://docs.tavily.com/docs/rest-api/api-reference).
 
@@ -50,7 +50,6 @@ $env:TAVILY_API_KEY = "tvly-<your-api-key"
 chainlit run app.py -w
 ```
 
-
 ### Limitations in the App
 
 The following events are returned by the server asynchronously, and not necessarily in the right order
@@ -61,4 +60,4 @@ Hence, in the chat window, the transcript from the server response would get pop
 I have handled this issue in a custom way in the UI, but it is not perfect.
 
 I have tried to use the response.text.delta event from the server, to get the input audio transcript, but these events don't seem to be getting raised at all.
-Will update this repo once I figure how that could be handled
+Will update this repo once I figure how that could be handled.
