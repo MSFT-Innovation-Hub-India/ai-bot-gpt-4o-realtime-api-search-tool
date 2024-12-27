@@ -123,6 +123,12 @@ class RTWSClient:
             )
             # this is the trigger to the server to start responding to the user query
             await self.send("response.create", {"response": self.response_config})
+            
+            # raise this event to the UI to pause the audio playback, in case it is doing so already, 
+            # when the user submitted a query in the chat interface
+            _event = {"type": "conversation_interrupted"}
+            # signal the UI to stop playing audio
+            self.dispatch("conversation.interrupted", _event)
 
     async def update_session(self):
         """
