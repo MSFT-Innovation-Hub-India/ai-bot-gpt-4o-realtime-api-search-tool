@@ -3,7 +3,7 @@
 This sample demonstrates the use of the Realtime API to build a highly interactive AI Assistant that one could communicate with both using speech/audio and text.
 The life cycle events in this Web socket API are quite complex, and this sample helps one to understand them.
 
-The sample uses only one additional skill, which is performing internet search using Tavily library
+**The sample uses only one additional skill, which is performing internet search using Tavily library**
 
 
 ### Features:
